@@ -141,7 +141,7 @@ new file mode 100644
 index 000000000..1227df551
 --- /dev/null
 +++ b/app/src/main/kotlin/com/hippo/ehviewer/client/EhSSLSocketFactory.kt
-@@ -0,0 +1,41 @@
+@@ -0,0 +1,37 @@
 +package com.hippo.ehviewer.client
 +
 +import android.util.Log
@@ -149,7 +149,6 @@ index 000000000..1227df551
 +import java.net.InetAddress
 +import java.net.Socket
 +import java.security.KeyStore
-+import javax.net.ssl.SSLContext
 +import javax.net.ssl.SSLSocket
 +import javax.net.ssl.SSLSocketFactory
 +import javax.net.ssl.TrustManagerFactory
@@ -157,23 +156,20 @@ index 000000000..1227df551
 +import okhttp3.OkHttpClient
 +
 +const val EXCEPTIONAL_DOMAIN = "hath.network"
-+private val sslSocketFactory: SSLSocketFactory = SSLContext.getInstance("TLS").apply {
-+    init(null, null, null)
-+}.socketFactory
++private val sslSocketFactory = SSLSocketFactory.getDefault() as SSLSocketFactory
 +
 +object EhSSLSocketFactory : SSLSocketFactory() {
 +    override fun getDefaultCipherSuites(): Array<String> = sslSocketFactory.defaultCipherSuites
 +    override fun getSupportedCipherSuites(): Array<String> = sslSocketFactory.supportedCipherSuites
-+    override fun createSocket(s: Socket, host: String, port: Int, autoClose: Boolean): Socket = sslSocketFactory.createSocket(s, resolveHost(s, host), port, autoClose) as SSLSocket
-+
++    override fun createSocket(s: Socket, host: String, port: Int, autoClose: Boolean): Socket {
++        val address = s.inetAddress.hostAddress.takeIf { host in dFEnabledDomains || EXCEPTIONAL_DOMAIN in host }
++        Log.d("EhSSLSocketFactory", "Host: $host Address: $address")
++        return sslSocketFactory.createSocket(s, address ?: host, port, autoClose) as SSLSocket
++    }
 +    override fun createSocket(host: String, port: Int): Socket = sslSocketFactory.createSocket(host, port)
 +    override fun createSocket(host: String, port: Int, localHost: InetAddress, localPort: Int): Socket = sslSocketFactory.createSocket(host, port, localHost, localPort)
 +    override fun createSocket(host: InetAddress, port: Int): Socket = sslSocketFactory.createSocket(host, port)
 +    override fun createSocket(address: InetAddress, port: Int, localAddress: InetAddress, localPort: Int): Socket = sslSocketFactory.createSocket(address, port, localAddress, localPort)
-+
-+    private fun resolveHost(socket: Socket, host: String): String = socket.inetAddress.hostAddress.takeIf {
-+        host in dFEnabledDomains || EXCEPTIONAL_DOMAIN in host
-+    } ?: host
 +}
 +
 +fun OkHttpClient.Builder.install(sslSocketFactory: SSLSocketFactory) = apply {
